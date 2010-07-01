@@ -169,7 +169,7 @@ __DATA__
 <script type="text/javascript">
 $(function() {
     prettyPrint();
-    $('#post_nopaste').submit(function(){
+    $('#nopaste').submit( function(){
         $.jStorage.set( "nick", $('#nick').val() );
         return true;
     });
