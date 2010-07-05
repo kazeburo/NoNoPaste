@@ -163,7 +163,6 @@ __DATA__
 : }
 
 <h2 class="subheader">List</h2>
-
 <: for $entries -> $entry { :>
 <div class="entry">
 <pre class="prettyprint">
@@ -182,7 +181,6 @@ __DATA__
 <a href="<: $req.uri_for('/', [ offset => $offset + 10 ] ) :>">Next</a>
 <: } :>
 </p>
-
 : }
 
 : override javascript -> {
@@ -193,11 +191,9 @@ $(function() {
         $.jStorage.set( "nick", $('#nick').val() );
         return true;
     });
-
     if ( $('#nick').val().length == 0 ) {
         $('#nick').val( $.jStorage.get("nick") );
     }
-
 });
 </script>
 : }
@@ -209,15 +205,14 @@ $(function() {
 
 : override content -> {
 <h2 class="subheader"><a href="<: $req.uri_for('/entry/'~$entry.id) :>"><: $req.uri_for('/entry/'~$entry.id) :></a></h2>
-
 <div class="entry">
 <pre class="prettyprint">
 <: $entry.body :>
 </pre>
 <div class="entry_meta"><a href="<: $req.uri_for('/entry/'~$entry.id) :>" class="date"><: $entry.ctime :></a> / <span class="nick"><: $entry.nick :></span></div>
 </div>
-
 : }
+
 : override javascript -> {
 <script type="text/javascript">
 $(function() {

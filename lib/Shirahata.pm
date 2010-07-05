@@ -91,7 +91,6 @@ sub build_template {
     if ( !$self->{_templates_dir} ) {
          my $reader = Data::Section::Simple->new(ref $self);
          my $all = $reader->get_data_section;
-
          $self->{_template_dir} = File::Temp::tempdir( CLEANUP => 1 ); 
          for my $section ( keys %$all ) {
              my $fh = Path::Class::file( $self->{_template_dir}, $section )->openw;
@@ -107,6 +106,7 @@ sub build_app {
     my $tx = Text::Xslate->new(
         path => [ $self->build_template ],
         cache_dir => File::Temp::tempdir( CLEANUP => 1 ),
+        cache => 2,
         input_layer => ':raw',
         function => {
             fillinform => sub {
@@ -210,8 +210,6 @@ sub post {
     my $class = caller;
     $class->_any( ['POST'], $_[0], $_[1]  );
 }
-
-
 
 1;
 
