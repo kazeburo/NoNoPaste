@@ -140,8 +140,13 @@ __DATA__
 <script src="<: $req.uri_for('/static/js/jquery-1.4.2.min.js') :>" type="text/javascript"></script>
 <script src="<: $req.uri_for('/static/js/jstorage.js') :>" type="text/javascript"></script>
 <script src="<: $req.uri_for('/static/js/prettify/prettify.js') :>" type="text/javascript"></script>
-
-: block javascript -> { }
+: block javascript -> {
+<script type="text/javascript">
+$(function() {
+    prettyPrint();
+});
+</script>
+: }
 
 </body>
 </html>
@@ -155,33 +160,33 @@ __DATA__
 : block form | fillinform( $req ) -> {
 <form method="post" action="/add" id="nopaste">
 <textarea name="body" rows="20" cols="60"></textarea>
-
 <label for="nick">nick</label>
 <input type="text" id="nick" name="nick" value="" size="21" />
 <input type="submit" id="post_nopaste" value="POST" />
 </form>
-: }
+: } # block form
 
 <h2 class="subheader">List</h2>
-<: for $entries -> $entry { :>
+: for $entries -> $entry {
 <div class="entry">
 <pre class="prettyprint">
 <: $entry.body :>
 </pre>
 <div class="entry_meta"><a href="<: $req.uri_for('/entry/' ~ $entry.id) :>" class="date"><: $entry.ctime :></a> / <span class="nick"><: $entry.nick :></span></div>
 </div>
-<: } :> 
+: }
+
 
 <p class="paging">
-<: my $offset = $req.param('offset') || 0 :>
-<: if $offset >= 10  { :>
-<a href="<: $req.uri_for('/', [ offset => $offset - 10 ] ) :> ">Prev</a>
-<: } :>
-<: if $next { :>
-<a href="<: $req.uri_for('/', [ offset => $offset + 10 ] ) :>">Next</a>
-<: } :>
-</p>
+: my $offset = $req.param('offset') || 0
+: if $offset >= 10  {
+<a href="<: $req.uri_for('/', [ offset => $offset - 10 ] ) :>">Prev</a>
 : }
+: if $next {
+<a href="<: $req.uri_for('/', [ offset => $offset + 10 ] ) :>">Next</a>
+: }
+</p>
+: } # content
 
 : override javascript -> {
 <script type="text/javascript">
@@ -196,7 +201,7 @@ $(function() {
     }
 });
 </script>
-: }
+: } # javascript
 
 
 @@ entry.tx
@@ -211,12 +216,5 @@ $(function() {
 </pre>
 <div class="entry_meta"><a href="<: $req.uri_for('/entry/'~$entry.id) :>" class="date"><: $entry.ctime :></a> / <span class="nick"><: $entry.nick :></span></div>
 </div>
-: }
+: } # content
 
-: override javascript -> {
-<script type="text/javascript">
-$(function() {
-    prettyPrint();
-});
-</script>
-: }
