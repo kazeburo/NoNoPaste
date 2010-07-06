@@ -8,8 +8,6 @@ use base qw/Class::Accessor::Fast/;
 use Plack::Builder;
 use Router::Simple;
 use Data::Section::Simple;
-use Text::Xslate qw(mark_raw);
-use HTML::FillInForm::Lite qw(fillinform);
 use Path::Class;
 use Net::IP;
 
@@ -86,40 +84,10 @@ sub psgi {
     };
 }
 
-sub build_template {
-    my $self = shift;
-    if ( !$self->{_templates_dir} ) {
-         my $reader = Data::Section::Simple->new(ref $self);
-         my $all = $reader->get_data_section;
-         $self->{_template_dir} = File::Temp::tempdir( CLEANUP => 1 ); 
-         for my $section ( keys %$all ) {
-             my $fh = Path::Class::file( $self->{_template_dir}, $section )->openw;
-             print $fh $all->{$section};
-         }
-    }
-    $self->{_template_dir};
-}
 
 sub build_app {
     my $self = shift;
-
-    my $tx = Text::Xslate->new(
-        path => [ $self->build_template ],
-        cache_dir => File::Temp::tempdir( CLEANUP => 1 ),
-        cache => 2,
-        input_layer => ':raw',
-        function => {
-            fillinform => sub {
-                my $q = shift;
-                return sub { 
-                    my $fif = HTML::FillInForm::Lite->new(layer => ':raw');
-                    my $output = $fif->fill(\$_[0], $q);
-                    mark_raw( $output )
-                };
-            },
-        },
-    );
-
+    
     sub {
         my $env = shift;
         my $psgi_res;
@@ -129,7 +97,7 @@ sub build_app {
         $s_res->content_type('text/html; charset=UTF-8');
 
         my $c = Shirahata::Connection->new({
-            _tx => $tx,
+            klass => ref $self,
             req => $s_req,
             res => $s_res,
             stash => {},
@@ -161,20 +129,20 @@ sub build_app {
         }
         else {
             # router not match
-            $psgi_res = $c->res->not_found->finalize;
+            $psgi_res = $c->res->not_found('no route')->finalize;
         }
 
         $psgi_res;
     };
 }
 
-my $_ROUTER;
+my $_ROUTER={};
 sub router {
-    my $class = shift;
-    if ( !$_ROUTER ) {
-        $_ROUTER = Router::Simple->new();
+    my $class = ref $_[0] ? ref $_[0] : $_[0];
+    if ( !$_ROUTER->{$class} ) {
+        $_ROUTER->{$class} = Router::Simple->new();
     }
-    $_ROUTER;
+    $_ROUTER->{$class};
 }
 
 sub _any($$$;$) {
@@ -218,8 +186,12 @@ package Shirahata::Connection;
 use strict;
 use warnings;
 use base qw/Class::Accessor::Fast/;
+use Text::Xslate qw(mark_raw);
+use HTML::FillInForm::Lite qw(fillinform);
+use Path::Class;
+use File::Temp;
 
-__PACKAGE__->mk_accessors(qw/req res stash args _tx/);
+__PACKAGE__->mk_accessors(qw/req res stash args klass/);
 
 *request = \&req;
 *response = \&res;
@@ -235,12 +207,56 @@ sub render {
         stash => $self->stash,
         %args,
     );
-    my $body = $self->_tx->render($file, \%vars);
+    my $body = $self->tx->render($file, \%vars);
     $self->res->status( 200 );
     $self->res->content_type('text/html; charset=UTF-8');
     $self->res->body( $body );
     $self->res;
 }
+
+my $template_dir = {};
+sub build_template {
+    my $self = shift;
+    if ( ! $template_dir->{$self->klass} ) {
+         my $reader = Data::Section::Simple->new($self->klass);
+         my $all = $reader->get_data_section;
+         $template_dir->{$self->klass} = File::Temp::tempdir( CLEANUP => 1 );
+warn $template_dir->{$self->klass};
+         for my $section ( keys %$all ) {
+             my $fh = Path::Class::file( $template_dir->{$self->klass}, $section )->openw;
+             print $fh $all->{$section};
+         }
+    }
+    $template_dir->{$self->klass};
+}
+
+my $tx_cache = {};
+sub tx {
+    my $self = shift;
+
+    return $tx_cache->{$self->klass}
+        if $tx_cache->{$self->klass}; 
+
+    my $template_dir = $self->build_template;
+    $tx_cache->{$self->klass} = Text::Xslate->new(
+        path => [ $template_dir ],
+        cache_dir => $template_dir,
+        cache => 2,
+        input_layer => ':raw',
+        function => {
+            fillinform => sub {
+                my $q = shift;
+                return sub { 
+                    my $fif = HTML::FillInForm::Lite->new(layer => ':raw');
+                    my $output = $fif->fill(\$_[0], $q);
+                    mark_raw( $output )
+                };
+            },
+        },
+    );
+    $tx_cache->{$self->klass};
+}
+
 
 1;
 

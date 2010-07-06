@@ -70,11 +70,12 @@ fieldset {
 /* page layout */
 body {
   text-align: center;
-  background-color: #fff;
+  background-color: #333;
   background-repeat: no-repeat;
   background-image: -webkit-gradient( linear, left top, left bottom,
-       from(rgba(33,33,33,1)), color-stop(0.8, rgba(255,255,255,1)), to(rgba(255,255,255,1)) );
-  background-image: -moz-linear-gradient(top, rgba(33,33,33,1), rgba(255,2555,255,1) 90%, rgba(255,255,255,1));
+       from(rgba(33,33,33,1)), color-stop(0.2, rgba(255,255,255,1)), color-stop(0.5, rgba(51,51,51,1)), to(rgba(51,51,51,1)) );
+  background-image: -moz-linear-gradient(top, rgba(33,33,33,1), rgba(255,2555,255,1) 20%, rgba(51,51,51,1));
+  background-attachment: fixed;
   height: 100%;
 }
 
@@ -86,7 +87,7 @@ body {
     max-width: 750px;
     margin: 0px auto;
     text-align: left;
-    background-color:#fff;
+    background-color: rgba(255,255,255,0.7);
     border-right: 1px solid #000;
     border-left: 1px solid #000;
 }
@@ -213,5 +214,10 @@ p.paging a {
 
 pre.prettyprint {
     border: none;
+    white-space: -moz-pre-wrap; /* Mozilla */
+    white-space: -pre-wrap;     /* Opera 4-6 */
+    white-space: -o-pre-wrap;   /* Opera 7 */
+    white-space: pre-wrap;      /* CSS3 */
+    word-wrap: break-word;      /* IE 5.5+ */
 }
 
