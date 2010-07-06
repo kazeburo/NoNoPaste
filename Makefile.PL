@@ -17,8 +17,9 @@ requires 'Net::IP';
 requires 'Plack::Middleware::Access';
 requires 'Plack::Middleware::ReverseProxy';
 requires 'Router::Simple';
-requires 'Text::Xslate', 0.1041;
-requires 'HTML::FillInForm::Lite';
+requires 'Text::MicroTempate::DataSection';
+requires 'Text::MicroTempate::Extended', 0.11;
+requires 'HTML::FillInForm::Lite', 1.09;
 
 requires 'DBI';
 requires 'DBD::SQLite', 1.25;
