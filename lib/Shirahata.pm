@@ -7,6 +7,8 @@ use Scalar::Util qw/blessed/;
 use base qw/Class::Accessor::Fast/;
 use Plack::Builder;
 use Router::Simple;
+use Cwd qw/realpath/;
+use File::Basename qw/dirname/;
 use Path::Class;
 use Net::IP;
 
@@ -35,11 +37,19 @@ sub import {
 sub new {
     my $class = shift;
     my $root_dir = shift;
+    my @caller = caller;
+    $root_dir ||= dirname( realpath($caller[1]) );
     $class->SUPER::new({ root_dir => $root_dir });
 }
 
 sub psgi {
     my $self = shift;
+    if ( ! ref $self ) {
+        my $root_dir = shift;
+        my @caller = caller;
+        $root_dir ||= dirname( realpath($caller[1]) );
+        $self = $self->new($root_dir);
+    }
 
     my @allowfrom = map { s/\s//g } split(/,/, $ENV{ACCESS_ALLOW_FROM} || "");
     my @frontproxy = map { s/\s//g } split(/,/, $ENV{FRONT_PROXY} || "");

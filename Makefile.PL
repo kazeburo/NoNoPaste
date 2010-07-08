@@ -20,6 +20,8 @@ requires 'Router::Simple';
 requires 'Text::MicroTempate::DataSection';
 requires 'Text::MicroTempate::Extended', 0.11;
 requires 'HTML::FillInForm::Lite', 1.09;
+requires 'Cwd';
+requires 'File::Basename';
 
 requires 'DBI';
 requires 'DBD::SQLite', 1.25;
