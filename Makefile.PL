@@ -17,11 +17,11 @@ requires 'Net::IP';
 requires 'Plack::Middleware::Access';
 requires 'Plack::Middleware::ReverseProxy';
 requires 'Router::Simple';
-requires 'Text::MicroTempate::DataSection';
-requires 'Text::MicroTempate::Extended', 0.11;
+requires 'Text::Xslate', 0.1043;
 requires 'HTML::FillInForm::Lite', 1.09;
 requires 'Cwd';
 requires 'File::Basename';
+requires 'Class::ISA';
 
 requires 'DBI';
 requires 'DBD::SQLite', 1.25;

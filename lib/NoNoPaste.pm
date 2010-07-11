@@ -81,7 +81,7 @@ get '/' => sub {
     my ( $self, $c )  = @_;
 
     my ($entries,$next) = $self->entry_list($c->req->param('offset'));
-    $c->render('index',
+    $c->render('index.tx',
                entries => $entries,
                next => $next );
 };
@@ -95,7 +95,7 @@ post '/add' => sub {
     }
 
     my ($entries,$next) = $self->entry_list;
-    $c->render('index',
+    $c->render('index.tx',
                entries => $entries,
                next => $next);
 };
@@ -105,88 +105,87 @@ get '/entry/{id:[0-9a-f]{16}}' => sub {
     my $entry = $self->retrieve_entry($c->args->{id});
     return $c->res->not_found() unless $entry;
 
-    $c->render('entry', entry => $entry );
+    $c->render('entry.tx', entry => $entry );
 };
 
 1;
 
 __DATA__
-@@ base.mt
+@@ base.tx
 <html>
 <head>
 <title>NoNoPaste: Yet Another NoPaste</title>
-<link rel="stylesheet" type="text/css" href="<?= $c->req->uri_for('/static/js/prettify/prettify.css') ?>" />
-<link rel="stylesheet" type="text/css" href="<?= $c->req->uri_for('/static/css/ui-lightness/jquery-ui-1.8.2.custom.css') ?>" />
-<link rel="stylesheet" type="text/css" href="<?= $c->req->uri_for('/static/css/default.css') ?>" />
+<link rel="stylesheet" type="text/css" href="<: $c.req.uri_for('/static/js/prettify/prettify.css') :>" />
+<link rel="stylesheet" type="text/css" href="<: $c.req.uri_for('/static/css/ui-lightness/jquery-ui-1.8.2.custom.css') :>" />
+<link rel="stylesheet" type="text/css" href="<: $c.req.uri_for('/static/css/default.css') :>" />
 </head>
 <body>
 <div id="container">
 <div id="header">
-<h1 class="title"><a href="<?= $c->req->uri_for('/') ?>">NoNoPaste: Yet Another NoPaste</a></h1>
+<h1 class="title"><a href="<: $c.req.uri_for('/') :>">NoNoPaste: Yet Another NoPaste</a></h1>
 <div class="welcome">
 <ul>
-<li><a href="<?= $c->req->uri_for('/') ?>">TOP</a></li>
+<li><a href="<: $c.req.uri_for('/') :>">TOP</a></li>
 </ul>
 </div>
 </div>
 
 <div id="content">
 
-? block content => sub { }
+: block content -> { }
 
 </div>
 </div>
-<script src="<?= $c->req->uri_for('/static/js/jquery-1.4.2.min.js') ?>" type="text/javascript"></script>
-<script src="<?= $c->req->uri_for('/static/js/jstorage.js') ?>" type="text/javascript"></script>
-<script src="<?= $c->req->uri_for('/static/js/prettify/prettify.js') ?>" type="text/javascript"></script>
-? block javascript => sub {
+<script src="<: $c.req.uri_for('/static/js/jquery-1.4.2.min.js') :>" type="text/javascript"></script>
+<script src="<: $c.req.uri_for('/static/js/jstorage.js') :>" type="text/javascript"></script>
+<script src="<: $c.req.uri_for('/static/js/prettify/prettify.js') :>" type="text/javascript"></script>
+: block javascript -> {
 <script type="text/javascript">
 $(function() {
     prettyPrint();
 });
 </script>
-? }
-
+: }
 </body>
 </html>
 
 
-@@ index.mt
-? extends 'base'
+@@ index.tx
+: cascade 'base.tx'
 
-? block content => sub {
+: around content -> {
 <h2 class="subheader">New Entry</h2>
-? fillinform( $c->req, sub {
+: block form |  fillinform( $c.req ) -> {
 <form method="post" action="/add" id="nopaste">
 <textarea name="body" rows="20" cols="60"></textarea>
 <label for="nick">nick</label>
 <input type="text" id="nick" name="nick" value="" size="21" />
 <input type="submit" id="post_nopaste" value="POST" />
 </form>
-? })
+: }  # block form
 
 <h2 class="subheader">List</h2>
-? for my $entry ( @$entries ) {
+: for $entries -> $entry {
 <div class="entry">
 <pre class="prettyprint">
-<?= $entry->{body} ?>
+<: $entry.body :>
 </pre>
-<div class="entry_meta"><a href="<?= $c->req->uri_for('/entry/' . $entry->{id}) ?>" class="date"><?= $entry->{ctime} ?></a> / <span class="nick"><?= $entry->{nick} ?></span></div>
+<div class="entry_meta"><a href="<: $c.req.uri_for('/entry/' ~ $entry.id) :>" class="date"><: $entry.ctime :></a> / <span class="nick"><: $entry.nick :></span></div>
 </div>
-? }
+: }
 
 <p class="paging">
-? my $offset = $c->req->param('offset') || 0;
-? if ( $offset >= 10 ) {
-<a href="<?= $c->req->uri_for('/', [ 'offset' => ($offset - 10) ] ) ?>">Prev</a>
-? }
-? if ( $next ) {
-<a href="<?= $c->req->uri_for('/', [ 'offset' => ($offset + 10) ] ) ?>">Next</a>
-? }
+: my $offset = $c.req.param('offset') || 0
+: if $offset >= 10 {
+<a href="<: $c.req.uri_for('/', [ 'offset' => ($offset - 10) ] ) :>">Prev</a>
+: }
+: if $next {
+<a href="<: $c.req.uri_for('/', [ 'offset' => ($offset + 10) ] ) :>">Next</a>
+: }
 </p>
-? } #block content
+: } #block content
 
-? block javascript => sub {
+: around javascript -> {
 <script type="text/javascript">
 $(function() {
     prettyPrint();
@@ -199,19 +198,18 @@ $(function() {
     }
 });
 </script>
-? } #block javascript
+: } #block javascript
 
+@@ entry.tx
+: cascade 'base.tx'
 
-@@ entry.mt
-? extends 'base'
-
-? block content => sub {
-<h2 class="subheader"><a href="<?= $c->req->uri_for('/entry/' . $entry->{id}) ?>"><?= $c->req->uri_for('/entry/' . $entry->{id}) ?></a></h2>
+: around content -> {
+<h2 class="subheader"><a href="<: $c.req.uri_for('/entry/' ~ $entry.id) :>"><: $c.req.uri_for('/entry/' ~ $entry.id) :></a></h2>
 <div class="entry">
 <pre class="prettyprint">
-<?= $entry->{body} ?>
+<: $entry.body :>
 </pre>
-<div class="entry_meta"><a href="<?= $c->req->uri_for('/entry/' . $entry->{id}) ?>" class="date"><?= $entry->{ctime} ?></a> / <span class="nick"><?= $entry->{nick} ?></span></div>
+<div class="entry_meta"><a href="<: $c.req.uri_for('/entry/' ~ $entry.id) :>" class="date"><: $entry.ctime :></a> / <span class="nick"><: $entry.nick :></span></div>
 </div>
-? } # content
+: } # content
 

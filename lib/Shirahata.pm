@@ -11,6 +11,10 @@ use Cwd qw/realpath/;
 use File::Basename qw/dirname/;
 use Path::Class;
 use Net::IP;
+use Class::ISA;
+use Text::Xslate;
+use Data::Section::Simple;
+use HTML::FillInForm::Lite qw//;
 
 __PACKAGE__->mk_accessors(qw/root_dir/);
 our @EXPORT = qw/get post any/;
@@ -23,11 +27,12 @@ sub import {
         if ( $name && $name =~ /^-base/ ) {
             if ( ! $caller->isa($class) && $caller ne 'main' ) {
                 push @{"$caller\::ISA"}, $class;
-                for my $func (@EXPORT) {
-                    *{"$caller\::$func"} = \&$func;
-                }
             }
-
+        }
+        if ( $name && $name =~ /^-(?:base|import)/ ) {
+            for my $func (@EXPORT) {
+                *{"$caller\::$func"} = \&$func;
+            }
         }
     }
     strict->import;
@@ -96,7 +101,48 @@ sub psgi {
 
 sub build_app {
     my $self = shift;
-    
+
+    my @isa = Class::ISA::super_path(ref $self);
+    unshift @isa, ref $self;
+
+    my @inheri;
+    for my $parent ( @isa ) {
+        last if $parent eq __PACKAGE__;
+        push @inheri, $parent;
+    } 
+
+    #router
+    my $router = Router::Simple->new;
+    for my $parent ( @inheri ) {
+        $router->connect(@{$_}) for @{$parent->router};
+    }
+
+    #template
+    my %templates;
+    for my $parent ( @inheri ) {
+        my $reader = Data::Section::Simple->new($parent);
+        my $template_hashref = $reader->get_data_section;
+        next if ! $template_hashref;
+        %templates = ( %$template_hashref, %templates );
+    }
+
+    #xslate
+    my $tx = Text::Xslate->new(
+        path => [ \%templates ],
+        cache => 2,
+        input_layer => '',
+        function => {
+            fillinform => sub {
+                my $q = shift;
+                return sub {
+                    my ($html) = @_;
+                    my $fif = HTML::FillInForm::Lite->new(layer => ':raw');
+                    return Text::Xslate::mark_raw( $fif->fill( \$html, $q ) );
+                }
+            }
+        },
+    );
+
     sub {
         my $env = shift;
         my $psgi_res;
@@ -106,13 +152,13 @@ sub build_app {
         $s_res->content_type('text/html; charset=UTF-8');
 
         my $c = Shirahata::Connection->new({
-            klass => ref $self,
+            tx => $tx,
             req => $s_req,
             res => $s_res,
             stash => {},
         });
 
-        if ( my $p = $self->router->match($env) ) {
+        if ( my $p = $router->match($env) ) {
             my $code = delete $p->{action};
             return $self->ise('uri match but no action found') unless $code;
 
@@ -147,9 +193,13 @@ sub build_app {
 
 my $_ROUTER={};
 sub router {
-    my $class = ref $_[0] ? ref $_[0] : $_[0];
+    my $klass = shift;
+    my $class = ref $klass ? ref $klass : $klass; 
     if ( !$_ROUTER->{$class} ) {
-        $_ROUTER->{$class} = Router::Simple->new();
+        $_ROUTER->{$class} = [];
+    }    
+    if ( @_ ) {
+        push @{ $_ROUTER->{$class} }, [@_];
     }
     $_ROUTER->{$class};
 }
@@ -158,7 +208,7 @@ sub _any($$$;$) {
     my $class = shift;
     if ( @_ == 3 ) {
         my ( $methods, $pattern, $code ) = @_;
-        $class->router->connect(
+        $class->router(
             $pattern,
             { action => $code },
             { method => [ map { uc $_ } @$methods ] } 
@@ -166,7 +216,7 @@ sub _any($$$;$) {
     }
     else {
         my ( $pattern, $code ) = @_;
-        $class->router->connect(
+        $class->router(
             $pattern,
             { action => $code }
         );
@@ -195,9 +245,8 @@ package Shirahata::Connection;
 use strict;
 use warnings;
 use base qw/Class::Accessor::Fast/;
-use Text::MicroTemplate::DataSectionEx qw//;
 
-__PACKAGE__->mk_accessors(qw/req res stash args klass/);
+__PACKAGE__->mk_accessors(qw/req res stash args tx/);
 
 *request = \&req;
 *response = \&res;
@@ -212,34 +261,11 @@ sub render {
         %args,
     );
 
-    my $mt = Text::MicroTemplate::DataSectionEx->new(
-        package => $self->klass,
-        package_name => 'Shirahata::TemplateFilters',
-        template_args => \%vars
-    );
-    my $body = $mt->render($file);
+    my $body = $self->tx->render($file, \%vars);
     $self->res->status( 200 );
     $self->res->content_type('text/html; charset=UTF-8');
     $self->res->body( $body );
     $self->res;
-}
-
-1;
-
-package Shirahata::TemplateFilters;
-
-use strict;
-use warnings;
-use HTML::FillInForm::Lite qw//;
-
-sub fillinform {
-    my $q = shift;
-    my $code = shift;
-    my $mteref = $Shirahata::TemplateFilters::_MTEREF ||
-        $Shirahata::TemplateFilters::_MTEREF::_MTREF;
-    $code->();
-    my $fif = HTML::FillInForm::Lite->new(layer => ':raw');
-    $$mteref = $fif->fill($mteref, $q);
 }
 
 1;
