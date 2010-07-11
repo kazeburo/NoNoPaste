@@ -66,7 +66,7 @@ sub psgi {
         push @frontproxies, $netip;
     }
 
-    my $app = $self->build_app;
+    my $app = $self->build_shirahata_psgi_app;
     $app = builder {
         if ( @frontproxies ) {
             enable_if {
@@ -99,21 +99,19 @@ sub psgi {
 }
 
 
-sub build_app {
+sub build_shirahata_psgi_app {
     my $self = shift;
 
-    my @isa = Class::ISA::super_path(ref $self);
-    unshift @isa, ref $self;
-
     my @inheri;
-    for my $parent ( @isa ) {
-        last if $parent eq __PACKAGE__;
+    for my $parent ( Class::ISA::self_and_super_path(ref $self) ) {
+        next if ! $parent->can('build_shirahata_psgi_app');
+        next if $parent eq __PACKAGE__;
         push @inheri, $parent;
     } 
 
     #router
     my $router = Router::Simple->new;
-    for my $parent ( @inheri ) {
+    for my $parent ( @inheri ) {      
         $router->connect(@{$_}) for @{$parent->router};
     }
 
