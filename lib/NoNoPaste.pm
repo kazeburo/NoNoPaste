@@ -81,7 +81,7 @@ get '/' => sub {
     my ( $self, $c )  = @_;
 
     my ($entries,$next) = $self->entry_list($c->req->param('offset'));
-    $c->render('index.tx',
+    $c->render('index',
                entries => $entries,
                next => $next );
 };
@@ -95,7 +95,7 @@ post '/add' => sub {
     }
 
     my ($entries,$next) = $self->entry_list;
-    $c->render('index.tx',
+    $c->render('index',
                entries => $entries,
                next => $next);
 };
@@ -105,13 +105,13 @@ get '/entry/{id:[0-9a-f]{16}}' => sub {
     my $entry = $self->retrieve_entry($c->args->{id});
     return $c->res->not_found() unless $entry;
 
-    $c->render('entry.tx', entry => $entry );
+    $c->render('entry', entry => $entry );
 };
 
 1;
 
 __DATA__
-@@ base.tx
+@@ base
 <html>
 <head>
 <title>NoNoPaste: Yet Another NoPaste</title>
@@ -150,8 +150,8 @@ $(function() {
 </html>
 
 
-@@ index.tx
-: cascade 'base.tx'
+@@ index
+: cascade 'base'
 
 : around content -> {
 <h2 class="subheader">New Entry</h2>
@@ -200,8 +200,8 @@ $(function() {
 </script>
 : } #block javascript
 
-@@ entry.tx
-: cascade 'base.tx'
+@@ entry
+: cascade 'base'
 
 : around content -> {
 <h2 class="subheader"><a href="<: $c.req.uri_for('/entry/' ~ $entry.id) :>"><: $c.req.uri_for('/entry/' ~ $entry.id) :></a></h2>

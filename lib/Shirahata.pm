@@ -2,6 +2,9 @@ package Shirahata;
 
 use strict;
 use warnings;
+use MRO::Compat;
+use mro;
+
 use Carp qw//;
 use Scalar::Util qw/blessed/;
 use base qw/Class::Accessor::Fast/;
@@ -11,7 +14,7 @@ use Cwd qw/realpath/;
 use File::Basename qw/dirname/;
 use Path::Class;
 use Net::IP;
-use Class::ISA;
+
 use Text::Xslate;
 use Data::Section::Simple;
 use HTML::FillInForm::Lite qw//;
@@ -34,6 +37,7 @@ sub import {
                 *{"$caller\::$func"} = \&$func;
             }
         }
+        
     }
     strict->import;
     warnings->import;
@@ -103,7 +107,7 @@ sub build_shirahata_psgi_app {
     my $self = shift;
 
     my @inheri;
-    for my $parent ( Class::ISA::self_and_super_path(ref $self) ) {
+    for my $parent ( @{mro::get_linear_isa(ref $self)} ) {
         next if ! $parent->can('build_shirahata_psgi_app');
         next if $parent eq __PACKAGE__;
         push @inheri, $parent;
@@ -125,6 +129,7 @@ sub build_shirahata_psgi_app {
     }
 
     #xslate
+    my $fif = HTML::FillInForm::Lite->new(layer => ':raw');
     my $tx = Text::Xslate->new(
         path => [ \%templates ],
         cache => 2,
@@ -134,7 +139,6 @@ sub build_shirahata_psgi_app {
                 my $q = shift;
                 return sub {
                     my ($html) = @_;
-                    my $fif = HTML::FillInForm::Lite->new(layer => ':raw');
                     return Text::Xslate::mark_raw( $fif->fill( \$html, $q ) );
                 }
             }
