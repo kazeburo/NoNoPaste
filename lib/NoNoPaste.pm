@@ -113,7 +113,7 @@ get '/entry/{id:[0-9a-f]{16}}/raw' => sub {
     my $entry = $self->retrieve_entry($c->args->{id});
     return $c->res->not_found() unless $entry;
     $c->res->content_type('text/plain; charset=UTF-8');
-    $c->render('raw_entry', entry => $entry );
+    $c->res->body( $entry->{body} );
 };
 
 1;
@@ -178,7 +178,7 @@ $(function() {
 <pre class="prettyprint">
 <: $entry.body :>
 </pre>
-<div class="entry_meta"><a href="<: $c.req.uri_for('/entry/' ~ $entry.id) :>" class="date"><: $entry.ctime :></a> / <span class="nick"><: $entry.nick :></span></div>
+<div class="entry_meta"><a href="<: $c.req.uri_for('/entry/' ~ $entry.id ~ '/raw') :>">raw</a> / <a href="<: $c.req.uri_for('/entry/' ~ $entry.id) :>" class="date"><: $entry.ctime :></a> / <span class="nick"><: $entry.nick :></span></div>
 </div>
 : }
 
@@ -217,12 +217,10 @@ $(function() {
 <pre class="prettyprint">
 <: $entry.body :>
 </pre>
-<div class="entry_meta"><a href="<: $c.req.uri_for('/entry/' ~ $entry.id ~ '/raw') :>/">raw</a> / <a href="<: $c.req.uri_for('/entry/' ~ $entry.id) :>" class="date"><: $entry.ctime :></a> / <span class="nick"><: $entry.nick :></span></div>
+<div class="entry_meta"><a href="<: $c.req.uri_for('/entry/' ~ $entry.id ~ '/raw') :>">raw</a> / <a href="<: $c.req.uri_for('/entry/' ~ $entry.id) :>" class="date"><: $entry.ctime :></a> / <span class="nick"><: $entry.nick :></span></div>
 </div>
 : } # content
 
-@@ raw_entry
-<:= $entry.body :>
 
 
 
