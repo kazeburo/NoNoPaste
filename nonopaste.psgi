@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
-use NoNoPaste3;
+use NoNoPaste;
 
-NoNoPaste3->psgi();
+NoNoPaste->psgi();
 
 

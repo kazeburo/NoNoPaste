@@ -175,7 +175,7 @@ $(function() {
 : }
 
 <p class="paging">
-: my $offset = $c.req.param('offset') || 0
+: my $offset = $c.req.param('offset') || 0;
 : if $offset >= 10 {
 <a href="<: $c.req.uri_for('/', [ 'offset' => ($offset - 10) ] ) :>">Prev</a>
 : }
