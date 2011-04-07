@@ -1,7 +1,7 @@
 package NoNoPaste;
 
 use Shirahata2;
-use Scope::Container::DBI;
+use Scope::Container::DBI 0.03;
 use Path::Class;
 use Digest::SHA;
 
@@ -10,10 +10,10 @@ our $VERSION = 0.01;
 sub dbh {
     my $self = shift;
     my $db_path = Path::Class::file( $self->root_dir, "data", "nonopaste.db" );
+    local $Scope::Container::DBI::DBI_CLASS = 'DBIx::Sunny'; 
     my $dbh = Scope::Container::DBI->connect(
         "dbi:SQLite:dbname=$db_path", '', '',
         {
-            RootClass => 'DBIx::Sunny',
             Callbacks => {
                  connected => sub {
                      my $connect = shift;
