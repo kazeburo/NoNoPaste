@@ -1,20 +1,23 @@
 package NoNoPaste;
 
-use Shirahata -base;
-use DBI qw(:sql_types); 
+use Shirahata2;
+use Scope::Container::DBI;
 use Path::Class;
-use Digest::MD5;
+use Digest::SHA;
 
 our $VERSION = 0.01;
 
 sub dbh {
     my $self = shift;
-    return $self->{__dbh} if $self->{__dbh};
-
     my $db_path = Path::Class::file( $self->root_dir, "data", "nonopaste.db" );
-    my $dbh = DBI->connect( "dbi:SQLite:dbname=$db_path","","",
-                            { RaiseError => 1, AutoCommit => 1 } );
-    $dbh->do(<<EOF);
+    my $dbh = Scope::Container::DBI->connect(
+        "dbi:SQLite:dbname=$db_path", '', '',
+        {
+            RootClass => 'DBIx::Sunny',
+            Callbacks => {
+                 connected => sub {
+                     my $connect = shift;
+                     $connect->do(<<EOF);
 CREATE TABLE IF NOT EXISTS entries (
     id VARCHAR(255) NOT NULL PRIMARY KEY,
     nick VARCHAR(255) NOT NULL,
@@ -22,11 +25,14 @@ CREATE TABLE IF NOT EXISTS entries (
     ctime DATETIME NOT NULL
 )
 EOF
-
-    $dbh->do(<<EOF);
+                     $connect->do(<<EOF);
 CREATE INDEX IF NOT EXISTS index_ctime ON entries ( ctime )
 EOF
-    
+                     return;
+                 }
+            },
+        }
+    );
     $dbh;
 }
 
@@ -35,25 +41,21 @@ sub add_entry {
     my (  $body, $nick ) = @_;
     $body = '' if ! defined $body;
     $nick = 'anonymouse' if ! defined $nick;
+    my $id = substr Digest::SHA::sha1_hex($$ . $self . join("\0", @_) . rand(1000) ), 0, 16;
 
-    my $id = substr Digest::MD5::md5_hex($$ . $self . join("\0", @_) . rand(1000) ), 0, 16;
-
-   my $sth = $self->dbh->prepare(<<EOF);
+   my $row = $self->dbh->query(<<EOF, $id, $nick, $body);
 INSERT INTO entries ( id, nick, body, ctime ) values ( ?, ?, ?, DATETIME('now') )
 EOF
-    my $row = $sth->execute( $id, $nick, $body );
     return ( $row == 1 ) ? $id : 0;
 }
 
 sub entry_list {
    my $self = shift;
    my $offset = shift || 0;
-
    my $sth = $self->dbh->prepare(<<EOF);
 SELECT id,nick,body,ctime FROM entries ORDER BY ctime DESC LIMIT ?,11
 EOF
-   $sth->bind_param(1, $offset,  SQL_INTEGER);
-   $sth->execute();
+   $sth->execute($offset);
 
    my @ret;
    while ( my $row = $sth->fetchrow_hashref ) {
@@ -68,13 +70,10 @@ EOF
 sub retrieve_entry {
    my $self = shift;
    my $id = shift;
-
-   my $sth = $self->dbh->prepare(<<EOF);
+   my $row = $self->dbh->select_row(<<EOF, $id);
 SELECT id,nick,body,ctime FROM entries WHERE id = ?
 EOF
-   $sth->execute($id);
-
-   return $sth->fetchrow_hashref;
+   return $row;
 }
 
 get '/' => sub {
