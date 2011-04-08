@@ -4,20 +4,13 @@ use Shirahata2;
 use Scope::Container::DBI 0.03;
 use Path::Class;
 use Digest::SHA;
+use NoNoPaste::Data;
 
 our $VERSION = 0.01;
 
-sub dbh {
-    my $self = shift;
-    my $db_path = Path::Class::file( $self->root_dir, "data", "nonopaste.db" );
-    local $Scope::Container::DBI::DBI_CLASS = 'DBIx::Sunny'; 
-    my $dbh = Scope::Container::DBI->connect(
-        "dbi:SQLite:dbname=$db_path", '', '',
-        {
-            Callbacks => {
-                 connected => sub {
-                     my $connect = shift;
-                     $connect->do(<<EOF);
+my $_on_connect = sub {
+    my $connect = shift;
+    $connect->do(<<EOF);
 CREATE TABLE IF NOT EXISTS entries (
     id VARCHAR(255) NOT NULL PRIMARY KEY,
     nick VARCHAR(255) NOT NULL,
@@ -25,15 +18,25 @@ CREATE TABLE IF NOT EXISTS entries (
     ctime DATETIME NOT NULL
 )
 EOF
-                     $connect->do(<<EOF);
+    $connect->do(<<EOF);
 CREATE INDEX IF NOT EXISTS index_ctime ON entries ( ctime )
 EOF
-                     return;
-                 }
+    return;
+};
+
+sub data {
+    my $self = shift;
+    my $db_path = Path::Class::file( $self->root_dir, "data", "nonopaste.db" );
+    local $Scope::Container::DBI::DBI_CLASS = 'DBIx::Sunny'; 
+    my $dbh = Scope::Container::DBI->connect(
+        "dbi:SQLite:dbname=$db_path", '', '',
+        {
+            Callbacks => {
+                 connected => $_on_connect,
             },
         }
     );
-    $dbh;
+    NoNoPaste::Data->new( dbh => $dbh );
 }
 
 sub add_entry {
@@ -43,37 +46,29 @@ sub add_entry {
     $nick = 'anonymouse' if ! defined $nick;
     my $id = substr Digest::SHA::sha1_hex($$ . $self . join("\0", @_) . rand(1000) ), 0, 16;
 
-   my $row = $self->dbh->query(<<EOF, $id, $nick, $body);
-INSERT INTO entries ( id, nick, body, ctime ) values ( ?, ?, ?, DATETIME('now') )
-EOF
-    return ( $row == 1 ) ? $id : 0;
+    my $row = $self->data->add_entry(
+        id => $id,
+        nick => $nick,
+        body => $body,
+    );
+    return ( $row ) ? $id : 0;
 }
 
 sub entry_list {
    my $self = shift;
    my $offset = shift || 0;
-   my $sth = $self->dbh->prepare(<<EOF);
-SELECT id,nick,body,ctime FROM entries ORDER BY ctime DESC LIMIT ?,11
-EOF
-   $sth->execute($offset);
+   my $rows = $self->data->entry_list( offset => $offset );
+   
+   my $next;
+   $next = pop @$rows if @$rows > 10;
 
-   my @ret;
-   while ( my $row = $sth->fetchrow_hashref ) {
-       push @ret, $row;
-       last if @ret == 10;
-   }
-  
-   my $next = $sth->fetchrow_hashref;
-   return \@ret, $next;
+   return $rows, $next;
 }
 
 sub retrieve_entry {
    my $self = shift;
    my $id = shift;
-   my $row = $self->dbh->select_row(<<EOF, $id);
-SELECT id,nick,body,ctime FROM entries WHERE id = ?
-EOF
-   return $row;
+   $self->data->retrieve_entry( id => $id );
 }
 
 get '/' => sub {
@@ -161,7 +156,7 @@ $(function() {
 : cascade 'base'
 
 : around content -> {
-<h2 class="subheader">New Entry</h2>
+<h2 class="subheader">新規投稿</h2>
 : block form |  fillinform( $c.req ) -> {
 <form method="post" action="/add" id="nopaste">
 <textarea name="body" rows="20" cols="60"></textarea>
@@ -171,7 +166,7 @@ $(function() {
 </form>
 : }  # block form
 
-<h2 class="subheader">List</h2>
+<h2 class="subheader">最新一覧</h2>
 : for $entries -> $entry {
 <div class="entry">
 <pre class="prettyprint">

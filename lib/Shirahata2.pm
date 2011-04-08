@@ -12,7 +12,7 @@ use Cwd qw/realpath/;
 use File::Basename qw/dirname/;
 use Path::Class;
 
-use Text::Xslate;
+use Text::Xslate 1.1003;
 use Data::Section::Simple;
 use HTML::FillInForm::Lite qw//;
 
