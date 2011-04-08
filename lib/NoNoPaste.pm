@@ -28,14 +28,11 @@ sub data {
     my $self = shift;
     my $db_path = Path::Class::file( $self->root_dir, "data", "nonopaste.db" );
     local $Scope::Container::DBI::DBI_CLASS = 'DBIx::Sunny'; 
-    my $dbh = Scope::Container::DBI->connect(
-        "dbi:SQLite:dbname=$db_path", '', '',
-        {
-            Callbacks => {
-                 connected => $_on_connect,
-            },
-        }
-    );
+    my $dbh = Scope::Container::DBI->connect( "dbi:SQLite:dbname=$db_path", '', '', {
+        Callbacks => {
+            connected => $_on_connect,
+        },
+    });
     NoNoPaste::Data->new( dbh => $dbh );
 }
 
@@ -44,7 +41,7 @@ sub add_entry {
     my (  $body, $nick ) = @_;
     $body = '' if ! defined $body;
     $nick = 'anonymouse' if ! defined $nick;
-    my $id = substr Digest::SHA::sha1_hex($$ . $self . join("\0", @_) . rand(1000) ), 0, 16;
+    my $id = substr Digest::SHA::sha1_hex($$ . join("\0", @_) . rand(1000) ), 0, 16;
 
     my $row = $self->data->add_entry(
         id => $id,
