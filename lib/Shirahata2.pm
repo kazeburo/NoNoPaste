@@ -4,12 +4,12 @@ use strict;
 use warnings;
 use utf8;
 use Carp qw//;
-use Scalar::Util qw/blessed/;
+use Scalar::Util qw//;
 use Plack::Builder;
 use Plack::Builder::Conditionals -prefix => 'c';
 use Router::Simple;
-use Cwd qw/realpath/;
-use File::Basename qw/dirname/;
+use Cwd qw//;
+use File::Basename qw//;
 use Path::Class;
 
 use Text::Xslate 1.1003;
@@ -39,7 +39,7 @@ sub new {
     my $class = shift;
     my $root_dir = shift;
     my @caller = caller;
-    $root_dir ||= dirname( realpath($caller[1]) );
+    $root_dir ||= File::Basename::dirname( Cwd::realpath($caller[1]) );
     bless { root_dir => $root_dir }, $class;
 }
 
@@ -48,24 +48,17 @@ sub psgi {
     if ( ! ref $self ) {
         my $root_dir = shift;
         my @caller = caller;
-        $root_dir ||= dirname( realpath($caller[1]) );
+        $root_dir ||= File::Basename::dirname( Cwd::realpath($caller[1]) );
         $self = $self->new($root_dir);
     }
 
     my @allowfrom = map { s/\s//g } split(/,/, $ENV{ACCESS_ALLOW_FROM} || "");
     my @frontproxy = map { s/\s//g } split(/,/, $ENV{FRONT_PROXY} || "");
 
-    my @frontproxies;
-    foreach my $ip ( @frontproxy ) {
-        my $netip = Net::IP->new($ip)
-            or die "not supported type of rule argument [$ip] or bad ip: " . Net::IP::Error();
-        push @frontproxies, $netip;
-    }
-
     my $app = $self->build_app;
     $app = builder {
-        if ( @frontproxies ) {
-            enable c_match_if c_addr(@frontproxies), 'ReverseProxy';
+        if ( @frontproxy ) {
+            enable c_match_if c_addr(@frontproxy), 'ReverseProxy';
         }
         if ( @allowfrom ) {
             my @rule;
@@ -134,7 +127,7 @@ sub build_app {
             Carp::croak( "undefined response") if ! defined $res;
 
             my $res_t = ref($res) || '';
-            if ( blessed $res && $res->isa('Plack::Response') ) {
+            if ( Scalar::Util::blessed $res && $res->isa('Plack::Response') ) {
                 $psgi_res = $res->finalize;
             }
             elsif ( $res_t eq 'ARRAY' ) {
@@ -210,9 +203,10 @@ package Shirahata2::Connection;
 
 use strict;
 use warnings;
-use base qw/Class::Accessor::Fast/;
-
-__PACKAGE__->mk_accessors(qw/req res stash args tx/);
+use Class::Accessor::Lite (
+    new => 1,
+    rw => [qw/req res stash args tx/]
+);
 
 *request = \&req;
 *response = \&res;
@@ -240,7 +234,7 @@ package Shirahata2::Request;
 
 use strict;
 use warnings;
-use base qw/Plack::Request/;
+use parent qw/Plack::Request/;
 use Hash::MultiValue;
 use Encode;
 
@@ -315,7 +309,7 @@ package Shirahata2::Response;
 
 use strict;
 use warnings;
-use base qw/Plack::Response/;
+use parent qw/Plack::Response/;
 use Encode;
 
 sub _body {
