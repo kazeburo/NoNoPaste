@@ -32,5 +32,14 @@ __PACKAGE__->select_row(
     q{SELECT id,nick,body,ctime FROM entries WHERE id = ?}
 );
 
+__PACKAGE__->select_all(
+    'search_entry',
+    'query' => 'Str',
+    'offset' => { isa => 'Uint', default => 0 },
+    q{SELECT id,nick,body,ctime FROM entries WHERE body LIKE ? ORDER BY ctime DESC LIMIT ?,11}
+);
+
+
+
 1;
 

@@ -90,6 +90,7 @@ sub build_app {
     #xslate
     my $fif = HTML::FillInForm::Lite->new();
     my $tx = Text::Xslate->new(
+        cache => 0,
         path => [ $templates ],
         function => {
             fillinform => sub {

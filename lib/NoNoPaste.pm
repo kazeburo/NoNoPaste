@@ -62,6 +62,19 @@ sub entry_list {
    return $rows, $next;
 }
 
+sub search_entry {
+   my $self = shift;
+   my $query = shift;
+   my $offset = shift || 0;
+   my $rows = $self->data->search_entry( query => '%'.$query.'%', offset => $offset );
+   
+   my $next;
+   $next = pop @$rows if @$rows > 10;
+
+   return $rows, $next;
+}
+
+
 sub retrieve_entry {
    my $self = shift;
    my $id = shift;
@@ -76,6 +89,17 @@ get '/' => sub {
                entries => $entries,
                next => $next );
 };
+
+get '/search' => sub {
+    my ( $self, $c )  = @_;
+    my $query = $c->req->param('q');
+    return $c->res->redirect( $c->req->uri_for('/') ) unless defined $query;
+    my ($entries,$next) = $self->search_entry($query, $c->req->param('offset'));
+    $c->render('search',
+               entries => $entries,
+               next => $next );
+};
+
 
 post '/add' => sub {
     my ($self, $c) = @_;
@@ -132,6 +156,14 @@ __DATA__
 <div id="content">
 
 : block content -> { }
+
+: block form2 |  fillinform( $c.req ) -> {
+<form method="get" action="/search" id="search_entry" style="background-color: #eee; margin: 0px auto 10px; padding: 10px; -webkit-border-radius: 3px; -moz-border-radius: 3px; -moz-box-shadow: 0px 0px 3px #000; -webkit-box-shadow: 0px 0px 3px #000;width:400px;text-align:center">
+<label for="q">検索</label>
+<input type="text" id="q" name="q" value="" size="21" style="width: 22em; height: 2em; padding: 2px; border: 1px solid #999;"/>
+<input type="submit" value="検索" />
+</form>
+: }  # block form2 : 
 
 </div>
 </div>
@@ -198,6 +230,33 @@ $(function() {
 });
 </script>
 : } #block javascript
+
+@@ search
+: cascade 'base'
+
+: around content -> {
+<h2 class="subheader">「<: $c.req.param('q') :>」の検索結果</h2>
+: for $entries -> $entry {
+<div class="entry">
+<pre class="prettyprint">
+<: $entry.body :>
+</pre>
+<div class="entry_meta"><a href="<: $c.req.uri_for('/entry/' ~ $entry.id ~ '/raw') :>">raw</a> / <a href="<: $c.req.uri_for('/entry/' ~ $entry.id) :>" class="date"><: $entry.ctime :></a> / <span class="nick"><: $entry.nick :></span></div>
+</div>
+: }
+
+<p class="paging">
+: my $offset = $c.req.param('offset') || 0;
+: if $offset >= 10 {
+<a href="<: $c.req.uri_for('/search', [ 'q'=>$c.req.param('q'), 'offset' => ($offset - 10) ] ) :>">Prev</a>
+: }
+: if $next {
+<a href="<: $c.req.uri_for('/search', [ 'q'=>$c.req.param('q'), 'offset' => ($offset + 10) ] ) :>">Next</a>
+: }
+</p>
+: } #block content
+
+
 
 @@ entry
 : cascade 'base'
